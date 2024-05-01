@@ -1,0 +1,212 @@
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+// Заполняет ячейку с номером i в массиве b, если она пустая
+unsigned long long int fillIfEmpty(size_t i, unsigned long long int a, unsigned long long int b);
+
+// Решает головоломку, заданную массивом a
+unsigned long long int solve(unsigned long long int a);
+
+// Проверяет, является ли i-й бит числа a равным 1
+const bool iEqualOne(size_t i, unsigned long long int a);
+
+// Заполняет ячейку с номером i в массиве b, если она пустая, и рекурсивно заполняет соседние ячейки
+unsigned long long int fillRow(size_t i, unsigned long long int a, unsigned long long int b);
+
+// Проверяет, является ли заполнение массива a правильным
+const bool fillInvariable(unsigned long long int a);
+
+// Находит индекс первой пустой ячейки массива a
+size_t findEmptyIndex(size_t i, unsigned long long int a);
+
+// Находит последовательность ячеек, начиная с ячейки (j, i), с определенным значением e
+unsigned long long int findValueE(size_t j, size_t i, size_t d, unsigned long long int a, size_t e, unsigned long long int r);
+
+// Проверяет, есть ли в массиве a последовательность ячеек, начинающаяся с ячейки (j, i), с определенными значениями
+unsigned long long int multySequence(size_t j, size_t i, size_t d, unsigned long long int a);
+
+// Проверяет, есть ли в строке r массива a последовательность ячеек с определенными значениями
+unsigned long long int rowSequence(size_t r, unsigned long long int a);
+
+// Проверяет, есть ли в столбце c массива a последовательность ячеек с определенными значениями
+unsigned long long int columnSequence(size_t c, unsigned long long int a);
+
+// Проверяет, есть ли в массиве a возможные ходы
+unsigned long long int potentialSteps(unsigned long long int a);
+
+// Производит ход в ячейку с номером i в массиве ain
+unsigned long long int makeStep(size_t i, unsigned long long int ain);
+
+// Пытается выполнить возможные ходы, начиная с хода s
+unsigned long long int trySteps(unsigned long long int s, unsigned long long int a);
+
+// Выводит массив a на экран
+void show(size_t i, unsigned long long int a);
+
+// Объявление переменных
+size_t rows = 0, columns = 0, constant = 100; // Размеры массива и константа
+unsigned long long int mask; // Маска для определения пустых ячеек
+
+unsigned long long int** table;
+
+// Заполняет ячейку с номером i в массиве b, если она пустая
+unsigned long long int fillIfEmpty(size_t i, unsigned long long int a, unsigned long long int b) {
+    size_t r = i / rows, c = i % rows;
+    unsigned long long int bc = b | unsigned long long int(1) << i;
+    unsigned long long int bl = c > 0 ? fillRow(i - 1, a, bc) : bc;
+    unsigned long long int br = c < rows - 1 ? fillRow(i + 1, a, bl) : bl;
+    unsigned long long int bu = r > 0 ? fillRow((r - 1) * rows + c, a, br) : br;
+    return r < columns - 1 ? fillRow((r + 1) * rows + c, a, bu) : bu;
+}
+
+// Заполняет ячейку с номером i в массиве b, если она пустая
+unsigned long long int fillRow(size_t i, unsigned long long int a, unsigned long long int b) {
+    return iEqualOne(i, a) && !iEqualOne(i, b) ? b | fillIfEmpty(i, a, b) : b;
+}
+
+// Проверяет, является ли i-й бит числа a равным 1
+const bool iEqualOne(size_t i, unsigned long long int a) {
+    return (a >> i) & 1;
+}
+
+// Проверяет, является ли заполнение массива a правильным
+const bool fillInvariable(unsigned long long int a) {
+    unsigned long long int b = mask & ~a;
+    return b == fillIfEmpty(findEmptyIndex(0, b), b, 0);
+}
+
+// Находит индекс первой пустой ячейки массива a
+size_t findEmptyIndex(size_t i, unsigned long long int a) {
+    return iEqualOne(i, a) ? i : findEmptyIndex(i + 1, a);
+}
+
+// Находит последовательность ячеек, начиная с ячейки (j, i), с определенным значением e
+unsigned long long int findValueE(size_t j, size_t i, size_t d, unsigned long long int a, size_t e, unsigned long long int r) {
+    return j ? findValueE(j - 1, i + d, d, a, e, !iEqualOne(i, a) && e == table[i / rows][i % rows] ? r * constant + i + 1 : r) : r;
+}
+
+// Проверяет, есть ли в массиве a последовательность ячеек, начинающаяся с ячейки (j, i), с определенными значениями
+unsigned long long int multySequence(size_t j, size_t i, size_t d, unsigned long long int a) {
+    if (j) {
+        unsigned long long int r = findValueE(j, i, d, a, table[i / rows][i % rows], 0);
+        return r > constant ? r : multySequence(j - 1, i + d, d, a);
+    }
+    else {
+        return 0;
+    }
+}
+
+// Проверяет, есть ли в строке r массива a последовательность ячеек с определенными значениями
+unsigned long long int rowSequence(size_t r, unsigned long long int a) {
+    if (r >= columns) {
+        return 0;
+    }
+    else {
+        unsigned long long int s = multySequence(rows, r * rows, 1, a);
+        return s ? s : rowSequence(r + 1, a);
+    }
+}
+
+// Проверяет, есть ли в столбце c массива a последовательность ячеек с определенными значениями
+unsigned long long int columnSequence(size_t c, unsigned long long int a) {
+    if (c >= rows) {
+        return 0;
+    }
+    else {
+        unsigned long long int s = multySequence(columns, c, rows, a);
+        return s ? s : columnSequence(c + 1, a);
+    }
+}
+
+// Проверяет, есть ли в массиве a возможные ходы
+unsigned long long int potentialSteps(unsigned long long int a) {
+    size_t s = rowSequence(0, a);
+    return s ? s : columnSequence(0, a);
+}
+
+// Производит ход в ячейку с номером i в массиве ain
+unsigned long long int makeStep(size_t i, unsigned long long int ain) {
+    size_t r = i / rows, c = i % rows;
+    unsigned long long int a = ain | unsigned long long int(1) << i;
+    return (c > 0 && iEqualOne(i - 1, a)) || (c < rows - 1 && iEqualOne(i + 1, a)) || (r > 0 && iEqualOne((r - 1) * rows + c, a))
+        || (r < columns - 1 && iEqualOne((r + 1) * rows + c, a)) || !fillInvariable(a) ? 0 : a;
+}
+
+// Пытается выполнить возможные ходы, начиная с хода s
+unsigned long long int trySteps(unsigned long long int s, unsigned long long int a) {
+    if (s) {
+        unsigned long long int b = makeStep(s % constant - 1, a);
+        unsigned long long int c = b ? solve(b) : 0;
+        return c ? c : trySteps(s / constant, a);
+    }
+    else {
+        return 0;
+    }
+}
+
+// Решает головоломку, заданную массивом a
+unsigned long long int solve(unsigned long long int a) {
+    unsigned long long int s = potentialSteps(a);
+    return s ? trySteps(s, a) : a;
+}
+
+// Выводит массив a на экран
+void show(size_t i, unsigned long long int a) {
+    if (i % rows == 0) {
+        cout << '\n';
+    }
+    if (i < columns * rows) {
+        cout << (a & 1 ? "[" : " ") << table[i / rows][i % rows] << (a & 1 ? "]" : " ") << '\t';
+        show(i + 1, a >> 1);
+    }
+}
+
+// Функция для чтения размера таблицы из файла
+void readSize(ifstream& file) {
+    file >> rows >> columns;
+}
+
+// Функция для чтения таблицы из файла
+void readTable(ifstream& file) {
+    table = new unsigned long long int* [rows];
+    for (size_t i = 0; i < rows; i++) {
+        table[i] = new unsigned long long int[columns];
+        for (size_t j = 0; j < columns; j++) {
+            file >> table[i][j];
+            cout << table[i][j] << "\t";
+        }
+        cout << endl;
+    }
+}
+
+// Функция для освобождения памяти, выделенной для таблицы
+void deleteTable() {
+    for (size_t i = 0; i < rows; i++) {
+        delete[] table[i];
+    }
+    delete[] table;
+}
+
+/* Функция main, в которой сначала считывается таблица из файла
+далее она выводится на экран в изначальном и, после решения головоломки, в решенном виде.
+Если файл не открыт, то выводит ошибку. */
+int main() {
+    setlocale(LC_ALL, "rus");
+    ifstream file("Hitory.txt");
+    if (file.is_open()) {
+        readSize(file);
+        cout << "Первоначальный вид таблицы:" << endl;
+        readTable(file);
+        mask = ~(~unsigned long long int(0) >> columns * rows << columns * rows);
+        cout << " " << endl;
+        cout << "Вычисленный вид таблицы:";
+        show(0, solve(0));
+        deleteTable();
+        file.close();
+    }
+    else {
+        cout << "Unable to open file";
+    }
+    return 0;
+}
